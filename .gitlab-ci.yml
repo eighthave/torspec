@@ -3,9 +3,13 @@ pages:
   image: debian:buster
   script:
     - apt-get update
-    - apt-get -qy install --no-install-recommends pandoc
+    - apt-get -qy install --no-install-recommends lektor
     - test -d public || mkdir public
-    - printf '<!DOCTYPE html>\n\n<html><body><h1>%s</h1><ul>' $CI_PROJECT_PATH > public/index.html
+    - printf "The Tor Project\n\n\n" | lektor quickstart --name "torspec" --path tmp
+    - rm -rf tmp/content/*
+    - mv tmp/* .
+    - sed 's,^ *\[[^\]]*\]?.$,,' templates/layout.html # delete unused menu items
+    - printf "title\x3a $CI_PROJECT_PATH\n---\nbody:\n\n" > content/contents.lr
     - for f in *.txt; do
         set -x;
         name=`echo $f | sed s,\.txt$,,`;
@@ -20,12 +24,12 @@ pages:
             > $md;
         printf "\n---\n\noriginal source\x3a [$f](https://gitweb.torproject.org/torspec.git/tree/$f)\n" >> $md;
         title=`sed -En '0,/^# /s/^# (.*)/\1/p' $md`;
-        printf "<li><a href=\"${name}.html\"><tt>$name</tt>&colon; $title</a></li>" >> public/index.html;
-        pandoc --from=markdown $md --output=public/${name}.html;
-        mkdir public/$name;
-        cp public/${name}.html public/$name/index.html;
+        mkdir content/$name;
+        printf "<li><a href=\"${name}.html\"><tt>$name</tt>&colon; $title</a></li>" >> content/contents.lr;
+        lr=content/$name/contents.lr;
+        printf "title\x3a $title\n---\nbody:\n\n" > $lr;
+        cat $md >> $lr;
       done
-    - printf '</ul></body></html>' >> public/index.html
   artifacts:
     paths:
     - public
